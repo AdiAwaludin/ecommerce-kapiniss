@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: ecommerce-kapiniss
+    env: php
+    plan: free
+    buildCommand: ""
+    startCommand: "php -S 0.0.0.0:10000 -t public"
+    rootDir: .
+    envVars:
+      - key: CI_ENVIRONMENT
+        value: production
