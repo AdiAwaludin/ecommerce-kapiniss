@@ -1,0 +1,11 @@
+[phases.setup]
+nixpkgsArchive = "f4c78d33f3e7a184e8f4c1c84a8ff79bceab9cb3"
+
+[phases.install]
+cmds = []
+
+[phases.build]
+cmds = []
+
+[phases.start]
+cmd = "php -S 0.0.0.0:$PORT -t public"
