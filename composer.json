@@ -1,0 +1,7 @@
+{
+  "name": "adi/ecommerce-kapiniss",
+  "type": "project",
+  "require": {
+    "php": "^8.1"
+  }
+}
