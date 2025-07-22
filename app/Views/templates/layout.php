@@ -283,6 +283,11 @@
             color: var(--accent-color);
         }
 
+        .footer hr { /* Target hr elements specifically within the footer */
+            border-color: rgba(255, 255, 255, 0.2) !important; /* Subtly transparent white */
+            border-top-width: 1px; /* Ensure it's 1px thin */
+         }
+
         .notification {
              position: fixed;
              top: 80px;
@@ -892,34 +897,36 @@
 
 
         // === Fungsi AJAX addToCart ===
-        
+        // Membungkus logic addToCart dalam fungsi bernama, bisa dipanggil dari berbagai tempat
         function addToCart(productId, quantity = 1, $buttonElement = null) { 
 
-            
+            // Cek apakah user sudah login (validasi frontend, backend tetap wajib)
             <?php if (!session()->get('logged_in')): ?>
                 showNotification('info', 'Anda harus login untuk menambah ke keranjang.');
-                
-                return; 
+                // Opsional: Redirect ke halaman login setelah beberapa saat
+                // setTimeout(function() { window.location.href = '<?= base_url('/login') ?>'; }, 2000);
+                return; // Hentikan eksekusi
             <?php endif; ?>
-             
+             // Jika user adalah admin, cegah penambahan ke keranjang
              <?php if (session()->get('role') === 'admin'): ?>
                   showNotification('warning', 'Admin tidak dapat menambah produk ke keranjang.');
-                  return; 
+                  return; // Hentikan eksekusi
              <?php endif; ?>
 
 
-            
+            // Tampilkan indikator loading pada tombol, jika elemen tombol diberikan
             if ($buttonElement && !$buttonElement.hasClass('is-loading')) {
-                 $buttonElement.addClass('is-loading').prop('disabled', true);
+                 $buttonElement.addClass('is-loading').prop('disabled', true); // Tambahkan kelas loading dan disable tombol
                  
-                 if ($buttonElement.text().trim() !== '' && !$buttonElement.find('.loading').length) {
-                     $buttonElement.data('original-html', $buttonElement.html());
-                     const spinner = '<span class="loading me-2"></span>';
-                     $buttonElement.html(spinner + $buttonElement.text());
-                 } else if ($buttonElement.text().trim() === '' && !$buttonElement.find('.loading').length) {
+                 // Tambahkan spinner dan simpan HTML asli tombol
+                 if ($buttonElement.text().trim() !== '' && !$buttonElement.find('.loading').length) { // Jika ada teks dan belum ada spinner
+                     $buttonElement.data('original-html', $buttonElement.html()); // Simpan HTML asli
+                     const spinner = '<span class="loading me-2"></span>'; // Elemen spinner
+                     $buttonElement.html(spinner + $buttonElement.text()); // Tambahkan spinner di depan teks
+                 } else if ($buttonElement.text().trim() === '' && !$buttonElement.find('.loading').length) { // Jika tidak ada teks
                       $buttonElement.data('original-html', $buttonElement.html());
-                      $buttonElement.html('<span class="loading"></span>');
-                 } else {
+                      $buttonElement.html('<span class="loading"></span>'); // Tampilkan hanya spinner
+                 } else { // Jika ada teks tapi sudah ada spinner (untuk beberapa kasus)
                        const spinner = '<span class="loading me-2"></span>';
                        if (!$buttonElement.find('.loading').length) {
                            $buttonElement.html(spinner + $buttonElement.text());
@@ -928,39 +935,40 @@
             }
 
 
-            
+            // Lakukan permintaan AJAX ke endpoint penambahan keranjang
             $.ajax({
-                 url: '<?= site_url('cart/add') ?>', 
-                 method: 'POST', 
-                 data: { 
+                 url: '<?= site_url('cart/add') ?>', // URL endpoint
+                 method: 'POST', // Metode HTTP
+                 data: { // Data yang akan dikirim
                      product_id: productId,
                      quantity: quantity,
-                     <?= csrf_token() ?>: '<?= csrf_hash() ?>' 
+                     <?= csrf_token() ?>: '<?= csrf_hash() ?>' // CSRF token untuk keamanan
                  },
-                 dataType: 'json', 
+                 dataType: 'json', // Harapkan respons dalam format JSON
                  
                  success: function(response) {
                      if (response.success) {
-                         
+                         // Tampilkan notifikasi sukses
                          showNotification('success', response.message);
-                         
+                         // Perbarui jumlah item di keranjang di navbar
                          if (response.cart_count !== undefined) {
                              updateCartCountDisplay(response.cart_count);
                          }
                      } else {
-                         
+                         // Tampilkan notifikasi error
                          showNotification('error', response.message);
                      }
                  },
                  error: function(xhr, status, error) {
                      console.error("AJAX error (cart/add): ", status, error, xhr.responseText);
-                     
+                     // Tangani error berdasarkan status HTTP
                       if (xhr.status === 302 || xhr.status === 401) {
-                           
+                           // Jika redirect ke login atau tidak terautentikasi
                            showNotification('info', 'Anda harus login untuk menambah ke keranjang.');
-                           
+                           // Opsional: Langsung redirect setelah beberapa saat
+                           // setTimeout(function() { window.location.href = '<?= base_url('/login') ?>'; }, 2000);
                       } else {
-                          
+                          // Untuk error server lainnya, coba parse pesan error dari respons JSON
                           let errorMessage = 'Terjadi kesalahan saat menambahkan produk ke keranjang.';
                           try {
                                const errorResponse = JSON.parse(xhr.responseText);
@@ -968,30 +976,31 @@
                                     errorMessage = errorResponse.message;
                                }
                           } catch (e) {
-                               
+                               // abaikan error parsing, gunakan pesan default
                           }
                           showNotification('error', errorMessage);
                       }
                  },
-                 complete: function() { 
-                     
+                 complete: function() { // Fungsi yang dijalankan setelah permintaan AJAX selesai (sukses atau error)
+                     // Kembalikan tombol ke kondisi semula (non-loading, aktif)
                       if ($buttonElement && $buttonElement.hasClass('is-loading')) {
-                          
+                          // Pastikan HTML asli dikembalikan jika ada
                            if ($buttonElement.data('original-html') !== undefined) {
                                $buttonElement.html($buttonElement.data('original-html'));
                            }
-                           $buttonElement.prop('disabled', false).removeClass('is-loading');
+                           $buttonElement.prop('disabled', false).removeClass('is-loading'); // Aktifkan kembali dan hapus kelas loading
                       }
                  }
             });
         }
         
+        // Memperbarui tampilan jumlah item di keranjang di navbar
         function updateCartCountDisplay(count) {
-             
+             // Pastikan elemen #cart-count ada sebelum diubah
              const cartCountSpan = $('#cart-count');
              if (cartCountSpan.length) {
                  cartCountSpan.text(count);
-                 
+                 // Sembunyikan badge jika jumlahnya 0, tampilkan jika lebih dari 0
                  if (parseInt(count) > 0) {
                      cartCountSpan.show();
                  } else {
@@ -1000,156 +1009,161 @@
              }
         }
 
-        
+        // === Inisialisasi Umum Saat Dokumen Siap ===
         $(document).ready(function() {
-            
+            // Muat jumlah item keranjang di navbar saat halaman dimuat (jika user login dan bukan admin)
             <?php if (session()->get('logged_in') && session()->get('role') !== 'admin'): ?>
-                 
+                 // Lakukan permintaan AJAX untuk mendapatkan jumlah item keranjang
                 $.ajax({
-                     url: '<?= site_url('cart/count') ?>', 
-                     method: 'GET', 
-                     dataType: 'json', 
+                     url: '<?= site_url('cart/count') ?>', // URL endpoint untuk mendapatkan jumlah item
+                     method: 'GET', // Metode HTTP
+                     dataType: 'json', // Harapkan respons JSON
                      success: function(response) {
-                          
+                          // Perbarui tampilan jumlah item keranjang berdasarkan respons
                          let count = 0;
-                         if (typeof response === 'number') {
+                         if (typeof response === 'number') { // Jika respons langsung angka
                              count = response;
-                         } else if (response && response.cart_count !== undefined) {
-                              
+                         } else if (response && response.cart_count !== undefined) { // Jika respons adalah objek JSON dengan properti cart_count
                              count = response.cart_count;
                          }
-                         updateCartCountDisplay(count); 
+                         updateCartCountDisplay(count); // Perbarui tampilan
                      },
                      error: function(xhr, status, error) {
-                          
+                          // Jika terjadi error saat mengambil jumlah item
                          console.error("Error fetching cart count:", status, error, xhr.responseText);
-                         updateCartCountDisplay(0);
-                          
+                         updateCartCountDisplay(0); // Set ke 0 jika gagal
+                          // Opsional: Tampilkan notifikasi error jika diperlukan
+                          // showNotification('error', 'Gagal memuat jumlah item keranjang.');
                      }
                 });
             <?php else: ?>
-                 
+                 // Jika user tidak login atau adalah admin, sembunyikan badge keranjang
                  $('#cart-count').hide();
             <?php endif; ?>
 
-            
+            // === Penanganan Klik Tombol 'Add to Cart' ===
+            // Delegasikan event click untuk tombol "Tambah ke Keranjang" yang mungkin ditambahkan secara dinamis
             $('body').on('click', '.add-to-cart-btn', function(e) {
-                e.preventDefault(); 
+                e.preventDefault(); // Cegah perilaku default tombol
 
-                const $button = $(this); 
-                const productId = $button.data('product-id'); 
-                let quantity = 1; 
+                const $button = $(this); // Tombol yang diklik
+                const productId = $button.data('product-id'); // Ambil product ID dari data-attribute
+                let quantity = 1; // Default quantity
 
-                
-                const $quantityInput = $button.siblings('.quantity-input'); 
+                // Jika ada input kuantitas terkait (misalnya di halaman detail produk)
+                const $quantityInput = $button.siblings('.quantity-input'); // Cari input kuantitas saudara
                 if ($quantityInput.length) {
-                    quantity = parseInt($quantityInput.val()) || 1; 
-                     
+                    quantity = parseInt($quantityInput.val()) || 1; // Ambil nilai kuantitas dari input
+                     // Validasi kuantitas terhadap stok maksimum (juga ada di backend)
                      const maxStock = parseInt($quantityInput.attr('max'));
                      if (quantity > maxStock) {
                           showNotification('warning', 'Kuantitas yang diminta (' + quantity + ') melebihi stok tersedia (' + maxStock + ').');
-                          return; 
+                          return; // Hentikan proses jika kuantitas melebihi stok
                      }
                 } else {
-                    
+                    // Jika tidak ada input kuantitas, ambil dari data-attribute tombol (misalnya di list produk)
                     quantity = $button.data('quantity') || 1;
                 }
 
-                 
+                 // Pastikan kuantitas adalah angka positif
                  if (isNaN(quantity) || quantity < 1) {
-                      quantity = 1;
+                      quantity = 1; // Default ke 1 jika tidak valid
                  }
 
-                
-                addToCart(productId, quantity, $button); 
+                // Panggil fungsi addToCart dengan product ID, kuantitas, dan elemen tombol untuk indikator loading
+                addToCart(productId, quantity, $button); // Kirim elemen tombol untuk menangani loading state
             });
             
 
-
-            
+            // === Penanganan Indikator Loading Generik untuk Form Submission ===
+            // Menambahkan indikator loading pada tombol submit saat form di-submit
             $('form').on('submit', function(e) {
-                const $form = $(this); 
-                 
+                const $form = $(this); // Form yang di-submit
+                 // Lewati form yang memiliki kelas 'no-generic-loading' (untuk form dengan penanganan loading kustom)
                  if ($form.hasClass('no-generic-loading')) { 
-                     return; 
+                     return; // Jangan terapkan loading generik
                  }
 
-                 
+                 // Temukan tombol submit dalam form
                 const $submitButton = $form.find('button[type="submit"]:not(.btn-close):not(.no-loading)');
 
 
                 if ($submitButton.length) {
-                    
+                    // Terapkan loading state pada setiap tombol submit yang ditemukan
                      $submitButton.each(function() {
-                          const $btn = $(this); 
-                           
+                          const $btn = $(this); // Tombol submit saat ini
+                           // Hanya terapkan loading jika tombol belum di-disable
                           if (!$btn.prop('disabled')) {
-                              $btn.addClass('is-loading').prop('disabled', true); 
-                              $btn.data('original-html', $btn.html()); 
+                              $btn.addClass('is-loading').prop('disabled', true); // Tambahkan kelas loading dan disable tombol
+                              $btn.data('original-html', $btn.html()); // Simpan HTML asli tombol
                                
+                               // Tambahkan spinner di depan teks tombol
                                 const spinner = '<span class="loading me-2"></span>';
                                 const btnText = $btn.text().trim();
-                                if (btnText !== '' && !$btn.find('.loading').length) { 
-                                      $btn.html(spinner + btnText); 
-                                 } else if (btnText === '' && !$btn.find('.loading').length) { 
-                                      $btn.html('<span class="loading"></span>'); 
+                                if (btnText !== '' && !$btn.find('.loading').length) { // Jika ada teks dan belum ada spinner
+                                      $btn.html(spinner + btnText); // Tampilkan spinner + teks
+                                 } else if (btnText === '' && !$btn.find('.loading').length) { // Jika tidak ada teks
+                                      $btn.html('<span class="loading"></span>'); // Tampilkan hanya spinner
                                  }
                           }
                      });
 
-                     
-
+                     // Catatan: Untuk form yang reload halaman, loading state akan hilang saat halaman baru dimuat.
+                     // Untuk form AJAX, Anda perlu secara manual mengembalikan loading state di fungsi `complete` AJAX.
                 } else {
-                     
+                     // Log peringatan jika tidak ada tombol submit yang ditemukan
                      console.warn("Form submitted, but no standard submit button found matching selector for loading state:", $form[0]);
-                     
+                     // Lanjutkan proses form submission
                 }
             });
 
 
-            
+            // === Lazy Loading Gambar ===
+            // Menggunakan Intersection Observer API untuk memuat gambar saat masuk ke viewport
             const imageObserver = new IntersectionObserver((entries, observer) => {
-                
+                // Iterasi setiap entri yang diamati
                 entries.forEach(entry => {
-                    if (entry.isIntersecting) { 
-                        const img = entry.target; 
-                        const src = img.getAttribute('data-src'); 
+                    if (entry.isIntersecting) { // Jika elemen masuk ke dalam viewport
+                        const img = entry.target; // Elemen gambar
+                        const src = img.getAttribute('data-src'); // Ambil URL gambar dari data-src
 
-                        if (src) { 
-                            img.src = src; 
-                            img.onload = () => { img.removeAttribute('data-src'); }; 
-
-                             
+                        if (src) { // Jika data-src ada
+                            img.src = src; // Set src gambar ke URL asli
+                            img.onload = () => { img.removeAttribute('data-src'); }; // Hapus data-src setelah gambar berhasil dimuat
+                             // Tangani error pemuatan gambar, ganti dengan gambar default
                              img.onerror = () => {
-                                 img.src = '<?= base_url('assets/images/default.jpg') ?>'; 
-                                  img.removeAttribute('data-src'); 
-                                  console.warn("Failed to load image:", src); 
+                                 img.src = '<?= base_url('assets/images/default.jpg') ?>'; // Gambar default jika gagal
+                                  img.removeAttribute('data-src'); // Hapus data-src
+                                  console.warn("Failed to load image:", src); // Log error
                               };
                         }
 
-                        observer.unobserve(img); 
+                        observer.unobserve(img); // Berhenti mengamati gambar setelah dimuat
                     }
                 });
-            }, { threshold: 0.1 }); 
+            }, { threshold: 0.1 }); // Deteksi saat 10% gambar terlihat
 
-            
+            // Amati semua gambar yang memiliki atribut data-src
             document.querySelectorAll('img[data-src]').forEach(img => {
-                imageObserver.observe(img); 
+                imageObserver.observe(img); // Mulai mengamati setiap gambar
             });
         });
 
-        
+        // === Fungsi showNotification ===
+        // Menampilkan notifikasi pop-up kustom (sukses, error, info, warning)
         function showNotification(type, message) {
-             
-            
+             // Opsional: Hapus notifikasi yang ada sebelumnya jika hanya ingin satu notifikasi tampil
+            // $('.notification').remove();
+
+            // Tentukan kelas CSS alert berdasarkan tipe notifikasi
             const alertClass = {
                  'success': 'alert-success',
                  'error': 'alert-danger',
                  'info': 'alert-info',
                  'warning': 'alert-warning'
-            }[type] || 'alert-info'; 
+            }[type] || 'alert-info'; // Default ke info jika tipe tidak dikenal
 
-            
+            // Tentukan ikon Font Awesome berdasarkan tipe notifikasi
             const iconClass = {
                 'success': 'fas fa-check-circle',
                 'error': 'fas fa-exclamation-triangle',
@@ -1157,7 +1171,7 @@
                 'warning': 'fas fa-exclamation-circle'
             }[type] || 'fas fa-info-circle';
 
-            
+            // Buat elemen HTML notifikasi
             const notification = `
                 <div class="alert ${alertClass} alert-dismissible fade show notification">
                     <i class="${iconClass} me-2"></i> 
@@ -1165,32 +1179,33 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button> 
                 </div>
             `;
-            $('body').append(notification); 
+            $('body').append(notification); // Tambahkan notifikasi ke body dokumen
 
-            
+            // Atur agar notifikasi menghilang secara otomatis setelah 5 detik
              setTimeout(function() {
-                 
+                 // Target notifikasi terakhir yang ditambahkan
                  $('.notification:last').fadeOut('slow', function() {
-                     $(this).remove(); 
+                     $(this).remove(); // Hapus elemen dari DOM setelah fade out
                  });
-             }, 5000); 
+             }, 5000); // Durasi sebelum fade out dimulai (5 detik)
         }
 
-         
+         // === Fungsi formatRupiah ===
+         // Memformat angka menjadi format mata uang Rupiah
          function formatRupiah(angka) {
-            
+            // Konversi input ke float, kembalikan jika bukan angka
             const num = parseFloat(angka);
-            if (isNaN(num)) return angka; 
+            if (isNaN(num)) return angka; // Jika bukan angka, kembalikan nilai aslinya
 
-            
+            // Gunakan Intl.NumberFormat untuk pemformatan mata uang yang kuat
             const formatter = new Intl.NumberFormat('id-ID', {
                  style: 'currency',
                  currency: 'IDR',
-                 minimumFractionDigits: 0, 
-                 maximumFractionDigits: 0,
+                 minimumFractionDigits: 0, // Tidak ada desimal
+                 maximumFractionDigits: 0, // Tidak ada desimal
             });
 
-            
+            // Format angka dan hapus spasi tambahan yang mungkin ditambahkan oleh formatter
             return formatter.format(num).replace(/\s/g, '');
          }
 
