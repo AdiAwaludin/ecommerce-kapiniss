@@ -88,5 +88,10 @@ class Autoload extends AutoloadConfig
      *
      * @var list<string>
      */
-    public $helpers = [];
+    public $helpers = [
+        'form',  // Untuk helper form seperti csrf_field(), old()
+        'url',   // Untuk helper URL seperti site_url(), base_url()
+        'text',  // Untuk helper teks seperti character_limiter()
+        // Pastikan TIDAK ada 'kint' di sini
+    ];
 }
